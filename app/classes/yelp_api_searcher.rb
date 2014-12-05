@@ -1,9 +1,9 @@
-class YelpApiSearcher
-  def initialize(query)
-    @query = query
-    @consumer_key = ENV['CONSUMER_KEY']
-    @consumer_secret = ENV['CONSUMER_SECRET']
-    @token = ENV['TOKEN']
-    @token_secret = ENV['TOKEN_SECRET']
+class ApiSearcher
+  def initialize()
+    @yelp_consumer_key = ENV['YELP_CONSUMER_KEY']
+    @yelp_consumer_secret = ENV['YELP_CONSUMER_SECRET']
+    @yelp_token = ENV['YELP_TOKEN']
+    @yelp_token_secret = ENV['YELP_TOKEN_SECRET']
+    @google_api_key = ENV['GOOGLE_API_KEY']
   end
 end
