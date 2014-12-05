@@ -13,7 +13,24 @@ class ApiSearcher
   end
 
   def google_matrix_response
-    @google_matrix_response = HTTParty.get("https://maps.googleapis.com/maps/api/distancematrix/json?origins=#{@address}&destinations=40.807536,-73.962573%7C40.782865,-73.965355%7C40.741061,-73.989699%7C40.746500,-74.001374%7C40.726376,-73.981777%7C40.706876,-74.011265%7C40.717778,-73.957579%7C40.695633,-73.991346%7C40.660204,-73.968956&key=#{ENV['GOOGLEAPIKEY']}&mode=walking")
+    financial_district = "40.707491,-74.011276"
+    greenwich_village = "40.733572,-74.002742"
+    essex = "40.718448,-73.988241"
+    hudson_yards = "40.754265,-74.003118"
+    murray_hill = "40.747879,-73.975657"
+    uws = "40.787011,-73.975368"
+    ues = "40.773565,-73.956555"
+    morningside_heights = "40.808956,-73.962433"
+    wash_heights = "40.841708,-73.939355"
+    carrol_garderns = "40.679533,-73.999164"
+    clinton_hill = "40.689367,-73.963902"
+    park_slope = "40.668104,-73.980582"
+    williamsburg = "40.708116,-73.957070"
+    greenpoint = "40.724545,-73.941860"
+    long_island_city = "40.744679,-73.948542"
+    astoria = "40.764357,-73.923462"
+
+    @google_matrix_response = HTTParty.get("https://maps.googleapis.com/maps/api/distancematrix/json?origins=#{@address}&destinations=#{financial_district}%7C#{greenwich_village}%7C#{essex}%7C#{hudson_yards}%7C#{murray_hill}%7C#{uws}%7C#{ues}%7C#{morningside_heights}%7C#{wash_heights}%7C#{carrol_garderns}%7C#{clinton_hill}%7C#{park_slope}%7C#{williamsburg}%7C#{greenpoint}%7C#{long_island_city}%7C#{astoria}&key=#{ENV['GOOGLEAPIKEY']}&mode=walking")
   end
 
   def get_distances
