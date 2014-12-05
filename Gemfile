@@ -41,4 +41,6 @@ gem 'spring',        group: :development
 
 # YELP gem
 gem 'yelp', require: 'yelp'
+gem 'httparty'
+
 
