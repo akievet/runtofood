@@ -1,9 +1,10 @@
 class ApiSearcher
-  attr_reader :address, :distance, :food
-  def initialize(address, distance, food)
+  attr_reader :address, :distance, :food, :city
+  def initialize(address, distance, food, city)
     @address = address
     @distance = distance
     @food = food
+    @city = city
     @yelp_client = Yelp::Client.new({
       consumer_key: ENV['YELPCONSUMERKEY'],
       consumer_secret: ENV['YELPCONSUMERSECRET'],
@@ -13,24 +14,10 @@ class ApiSearcher
   end
 
   def google_matrix_response(starting_point)
-    financial_district = "40.707491,-74.011276"
-    greenwich_village = "40.733572,-74.002742"
-    essex = "40.718448,-73.988241"
-    hudson_yards = "40.754265,-74.003118"
-    murray_hill = "40.747879,-73.975657"
-    uws = "40.787011,-73.975368"
-    ues = "40.773565,-73.956555"
-    morningside_heights = "40.808956,-73.962433"
-    wash_heights = "40.841708,-73.939355"
-    carrol_garderns = "40.679533,-73.999164"
-    clinton_hill = "40.689367,-73.963902"
-    park_slope = "40.668104,-73.980582"
-    williamsburg = "40.708116,-73.957070"
-    greenpoint = "40.724545,-73.941860"
-    long_island_city = "40.744679,-73.948542"
-    astoria = "40.764357,-73.923462"
-
-    @google_matrix_response = HTTParty.get("https://maps.googleapis.com/maps/api/distancematrix/json?origins=#{starting_point}&destinations=#{financial_district}%7C#{greenwich_village}%7C#{essex}%7C#{hudson_yards}%7C#{murray_hill}%7C#{uws}%7C#{ues}%7C#{morningside_heights}%7C#{wash_heights}%7C#{carrol_garderns}%7C#{clinton_hill}%7C#{park_slope}%7C#{williamsburg}%7C#{greenpoint}%7C#{long_island_city}%7C#{astoria}&key=#{ENV['GOOGLEAPIKEY']}&mode=walking")
+    @locations = Location.where(city_id: @city.id)
+    input = ""
+    @locations.each { |location| input << "#{location.latitude},#{location.longitude}%7C"}
+    @google_matrix_response = HTTParty.get("https://maps.googleapis.com/maps/api/distancematrix/json?origins=#{starting_point}&destinations=#{input}&key=#{ENV['GOOGLEAPIKEY']}&mode=walking")
   end
 
   def get_distances
@@ -63,41 +50,55 @@ class ApiSearcher
     low = self.lower_range_distance
     high = self.higher_range_distance
     self.google_matrix_response(@address)
-    destinations = @google_matrix_response["destination_addresses"]
-    destination_hash = {}
+    #destinations = @google_matrix_response["destination_addresses"]
+    @destination_hash = {}
     self.get_distances.each_with_index do |distance, index|
       if distance > low && distance < high
-        destination_hash["#{destinations[index]}"] = distance
+        @destination_hash[@locations[index]] = distance
       end
     end
-    binding.pry
 
-    if destination_hash == {}
-      waypoint_distance = self.get_partial_distances.sample
+    i = 0
+    until @destination_hash.keys > 3 || i == 5
+      random_waypoint_distance = self.get_partial_distances.sample
       hash = Hash[@waypoint_array.map.with_index.to_a]
-      waypoint_address = destinations[hash[waypoint_distance]]
-      waypoint = { "#{waypoint_address}" => waypoint_distance }
-
-      self.google_matrix_response(waypoint_address)
-
-      @waypoint_array.each_with_index do |distance, index|
-
+      #get object with that distance
+      waypoint = @locations[hash[random_waypoint_distance]]
+      @destination_hash["waypoint"] = waypoint
+      @destination_hash["waypoint distance"] = random_waypoint_distance
+      #Make google matrix api request again, setting the waypoint as the starting point
+      self.google_matrix_response("#{waypoint.latitude},#{waypoint.longitude}")
+      #Get new set of distances from waypoint to all the other points
+      self.get_distances.each_with_index do |distance, index|
+        total_route_distance = distance + random_waypoint_distance
+        if total_route_distance > low && total_route_distance < high
+          @destination_hash[@locations[index]] = {
+            "segment" => distance,
+            "total" => total_route_distance
+          }
+        end
       end
+      i += 1
     end
-
-
-    binding.pry
-    return destination_hash
   end
 
   def get_yelp_results
+    self.get_range_distance_matches
     params = {
       term: @food,
       limit: 3,
       radius_filter: 1600
     }
-    self.get_range_distance_matches.keys.map do |destination|
-      @yelp_client.search(destination, params)
+
+    if @destination_hash["waypoint"]
+      destinations = @destination_hash.keys.select { |key| key.class == Location }
+      destinations.map do |destination|
+        @yelp_client.search(destination.address, params)
+      end
+    else
+      @destination_hash.keys.map do |destination|
+        @yelp_client.search(destination, params)
+      end
     end
   end
 
