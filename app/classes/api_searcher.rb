@@ -12,7 +12,7 @@ class ApiSearcher
     })
   end
 
-  def google_matrix_response
+  def google_matrix_response(starting_point)
     financial_district = "40.707491,-74.011276"
     greenwich_village = "40.733572,-74.002742"
     essex = "40.718448,-73.988241"
@@ -30,16 +30,16 @@ class ApiSearcher
     long_island_city = "40.744679,-73.948542"
     astoria = "40.764357,-73.923462"
 
-    @google_matrix_response = HTTParty.get("https://maps.googleapis.com/maps/api/distancematrix/json?origins=#{@address}&destinations=#{financial_district}%7C#{greenwich_village}%7C#{essex}%7C#{hudson_yards}%7C#{murray_hill}%7C#{uws}%7C#{ues}%7C#{morningside_heights}%7C#{wash_heights}%7C#{carrol_garderns}%7C#{clinton_hill}%7C#{park_slope}%7C#{williamsburg}%7C#{greenpoint}%7C#{long_island_city}%7C#{astoria}&key=#{ENV['GOOGLEAPIKEY']}&mode=walking")
+    @google_matrix_response = HTTParty.get("https://maps.googleapis.com/maps/api/distancematrix/json?origins=#{starting_point}&destinations=#{financial_district}%7C#{greenwich_village}%7C#{essex}%7C#{hudson_yards}%7C#{murray_hill}%7C#{uws}%7C#{ues}%7C#{morningside_heights}%7C#{wash_heights}%7C#{carrol_garderns}%7C#{clinton_hill}%7C#{park_slope}%7C#{williamsburg}%7C#{greenpoint}%7C#{long_island_city}%7C#{astoria}&key=#{ENV['GOOGLEAPIKEY']}&mode=walking")
   end
 
   def get_distances
-    distance_array = []
+    @distance_array = []
     @google_matrix_response["rows"].first["elements"].each_with_index do |route, index|
       distance = route["distance"]["value"]
-      distance_array << distance
+      @distance_array << distance
     end
-    return distance_array
+    return @distance_array
   end
 
   def miles_to_meters(miles)
@@ -51,14 +51,18 @@ class ApiSearcher
   end
 
   def higher_range_distance
-    self.miles_to_meters(@distance) + 100
+    self.miles_to_meters(@distance) + 1000
+  end
+
+  def get_partial_distances
+    @waypoint_array = @distance_array.select { |distance| distance < self.lower_range_distance }#all the distances lower than @distance
   end
 
 
   def get_range_distance_matches
     low = self.lower_range_distance
     high = self.higher_range_distance
-    self.google_matrix_response
+    self.google_matrix_response(@address)
     destinations = @google_matrix_response["destination_addresses"]
     destination_hash = {}
     self.get_distances.each_with_index do |distance, index|
@@ -66,6 +70,23 @@ class ApiSearcher
         destination_hash["#{destinations[index]}"] = distance
       end
     end
+    binding.pry
+
+    if destination_hash == {}
+      waypoint_distance = self.get_partial_distances.sample
+      hash = Hash[@waypoint_array.map.with_index.to_a]
+      waypoint_address = destinations[hash[waypoint_distance]]
+      waypoint = { "#{waypoint_address}" => waypoint_distance }
+
+      self.google_matrix_response(waypoint_address)
+
+      @waypoint_array.each_with_index do |distance, index|
+
+      end
+    end
+
+
+    binding.pry
     return destination_hash
   end
 

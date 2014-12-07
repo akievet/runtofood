@@ -44,4 +44,6 @@ gem 'yelp', require: 'yelp'
 gem 'httparty'
 gem 'pry'
 
+gem 'geocoder'
+
 
