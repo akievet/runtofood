@@ -58,19 +58,16 @@ class ApiSearcher
       end
     end
 
-    i = 0
-    until @destination_hash.keys > 3 || i == 5
-      random_waypoint_distance = self.get_partial_distances.sample
+    until @destination_hash != {}
+      @random_waypoint_distance = self.get_partial_distances.sample
       hash = Hash[@waypoint_array.map.with_index.to_a]
       #get object with that distance
-      waypoint = @locations[hash[random_waypoint_distance]]
-      @destination_hash["waypoint"] = waypoint
-      @destination_hash["waypoint distance"] = random_waypoint_distance
+      @waypoint = @locations[hash[@random_waypoint_distance]]
       #Make google matrix api request again, setting the waypoint as the starting point
-      self.google_matrix_response("#{waypoint.latitude},#{waypoint.longitude}")
+      self.google_matrix_response("#{@waypoint.latitude},#{@waypoint.longitude}")
       #Get new set of distances from waypoint to all the other points
       self.get_distances.each_with_index do |distance, index|
-        total_route_distance = distance + random_waypoint_distance
+        total_route_distance = distance + @random_waypoint_distance
         if total_route_distance > low && total_route_distance < high
           @destination_hash[@locations[index]] = {
             "segment" => distance,
@@ -78,7 +75,6 @@ class ApiSearcher
           }
         end
       end
-      i += 1
     end
   end
 
@@ -90,20 +86,21 @@ class ApiSearcher
       radius_filter: 1600
     }
 
-    if @destination_hash["waypoint"]
+    if @waypoint
       destinations = @destination_hash.keys.select { |key| key.class == Location }
       destinations.map do |destination|
         @yelp_client.search(destination.address, params)
       end
     else
       @destination_hash.keys.map do |destination|
-        @yelp_client.search(destination, params)
+        @yelp_client.search(destination.address, params)
       end
     end
   end
 
   def return_destination_info
     data_to_send = []
+    route_info = {}
     self.get_yelp_results.each_with_index do |area, idx|
       area.businesses.map do |business|
         hash = {}
@@ -116,6 +113,11 @@ class ApiSearcher
         data_to_send << hash
       end
     end
+    route_info["starting_point"] = @address
+    if @waypoint
+      route_info["waypoint"] = @waypoint
+    end
+    data_to_send << route_info
     return data_to_send
   end
 
