@@ -98,6 +98,35 @@ class ApiSearcher
     end
   end
 
+  def get_public_transit_directions(origin, destination)
+    output = HTTParty.get("https://maps.googleapis.com/maps/api/directions/json?origin=#{origin}&destination=#{destination}&mode=transit&departure_time=#{Time.now.to_i}&key=#{ENV['GOOGLEAPIKEY']}")
+    parse_transit_data(output)
+  end
+
+  def parse_transit_data(output)
+    route = output["routes"][0]
+    copyright = route["copyrights"] ||= ""
+    leg_hash = {}
+    route["legs"].map do |leg|
+      steps_array = []
+      leg_hash["duration"] = leg["duration"]["text"]
+      leg["steps"].map do |step|
+        step_hash = {}
+        step_hash["step_duration"] = step["duration"]["text"],
+        step_hash["html_instructions"] = step["html_instructions"],
+        if step["transit_details"]
+          step_hash["transit_details"] = step["transit_details"]["line"]
+        end
+        steps_array << step_hash
+      end
+      leg_hash["steps"] = steps_array
+    end
+    parsed_data = {
+      copyright: copyright,
+      legs: leg_hash
+    }
+  end
+
   def return_destination_info
     data_to_send = []
     route_info = {}
@@ -110,6 +139,7 @@ class ApiSearcher
         hash["latitude"] = business.location.coordinate.latitude
         hash["longitude"] = business.location.coordinate.longitude
         hash["address"] = business.location.display_address
+        hash["transit_directions"] = self.get_public_transit_directions(("#{business.location.coordinate.latitude},#{business.location.coordinate.longitude}"),@address)
         data_to_send << hash
       end
     end
