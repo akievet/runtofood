@@ -3,6 +3,8 @@ source 'https://rubygems.org'
 
 # Bundle edge Rails instead: gem 'rails', github: 'rails/rails'
 gem 'rails', '4.1.7'
+
+gem 'rails-api'
 # Use postgresql as the database for Active Record
 gem 'pg'
 # Use SCSS for stylesheets
@@ -44,6 +46,7 @@ gem 'yelp', require: 'yelp'
 gem 'httparty'
 gem 'pry'
 
+gem 'rack-cors', :require => 'rack/cors'
 gem 'geocoder'
 
 

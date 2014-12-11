@@ -1,5 +1,5 @@
 class ApiSearcher
-  attr_reader :address, :distance, :food, :city
+  attr_accessor :address, :distance, :food, :city
   def initialize(address, distance, food, city)
     @address = address
     @distance = distance
@@ -11,6 +11,13 @@ class ApiSearcher
       token: ENV['YELPTOKEN'],
       token_secret: ENV['YELPTOKENSECRET']
     })
+  end
+
+  def format_address
+    lat_long = Geocoder.coordinates(@address)
+    lat = lat_long[0]
+    long = lat_long[1]
+    @address = "#{lat},#{long}"
   end
 
   def google_matrix_response(starting_point)
@@ -89,11 +96,11 @@ class ApiSearcher
     if @waypoint
       destinations = @destination_hash.keys.select { |key| key.class == Location }
       destinations.map do |destination|
-        @yelp_client.search(destination.address, params)
+        @yelp_api_results = @yelp_client.search(destination.address, params)
       end
     else
       @destination_hash.keys.map do |destination|
-        @yelp_client.search(destination.address, params)
+        @yelp_api_results = @yelp_client.search(destination.address, params)
       end
     end
   end
@@ -105,7 +112,7 @@ class ApiSearcher
 
   def parse_transit_data(output)
     route = output["routes"][0]
-    copyright = route["copyrights"] ||= ""
+    copyright = route["copyrights"] || ""
     leg_hash = {}
     route["legs"].map do |leg|
       steps_array = []
@@ -127,28 +134,42 @@ class ApiSearcher
     }
   end
 
-  def return_destination_info
-    data_to_send = []
-    route_info = {}
-    self.get_yelp_results.each_with_index do |area, idx|
-      area.businesses.map do |business|
-        hash = {}
-        hash["name"] = business.name
-        hash["rating"] = business.rating
-        hash["url"] = business.url
-        hash["latitude"] = business.location.coordinate.latitude
-        hash["longitude"] = business.location.coordinate.longitude
-        hash["address"] = business.location.display_address
-        hash["transit_directions"] = self.get_public_transit_directions(("#{business.location.coordinate.latitude},#{business.location.coordinate.longitude}"),@address)
-        data_to_send << hash
+  def convert_data
+    self.format_address
+    @distance = @distance.to_i
+  end
+
+  def parse_yelp_results
+    self.get_yelp_results
+    binding.pry
+    restaurants_array = []
+    @yelp_api_results.businesses.map do | business |
+      hash = {}
+      hash["name"] = business.name || ""
+      hash["rating"] = business.rating || ""
+      hash["url"] = business.url || ""
+      hash["latitude"] = business.location.coordinate.latitude || ""
+      hash["longitude"] = business.location.coordinate.longitude || ""
+      hash["address"] = business.location.display_address || ""
+      hash["transit_directions"] = self.get_public_transit_directions(("#{business.location.coordinate.latitude},#{business.location.coordinate.longitude}"),@address) || ""
+      if @waypoint
+        hash["google_api_input"] = "&origin=#{@address}&waypoints=#{@waypoint.latitude},#{@waypoint.longitude}&destination=#{business.location.coordinate.latitude},#{business.location.coordinate.longitude}&mode=walking"
+      else
+        hash["google_api_input"] = "&origin=#{@address}&destination=#{business.location.coordinate.latitude},#{business.location.coordinate.longitude}&mode=walking"
       end
+      restaurants_array << hash
     end
-    route_info["starting_point"] = @address
-    if @waypoint
-      route_info["waypoint"] = @waypoint
-    end
-    data_to_send << route_info
-    return data_to_send
+    return restaurants_array
+  end
+
+
+  def return_destination_info
+    self.convert_data
+    data_to_send = {
+      :starting_point => @address,
+      :waypoint => @waypoint || false,
+      :businesses => self.parse_yelp_results
+    }
   end
 
 end
