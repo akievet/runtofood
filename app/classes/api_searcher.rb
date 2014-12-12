@@ -141,7 +141,6 @@ class ApiSearcher
 
   def parse_yelp_results
     self.get_yelp_results
-    binding.pry
     restaurants_array = []
     @yelp_api_results.businesses.map do | business |
       hash = {}
