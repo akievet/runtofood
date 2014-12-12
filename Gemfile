@@ -48,5 +48,6 @@ gem 'pry'
 
 gem 'rack-cors', :require => 'rack/cors'
 gem 'geocoder'
+gem 'rails_12factor'
 
 
