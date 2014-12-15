@@ -6,7 +6,7 @@ class RoutesController < ApplicationController
       food = params[:food]
       distance = params[:distance]
     else
-      city = City.find(10)
+      city = City.find(1)
       address = "505 LaGuardia Pl, NYC"
       food = "bagels"
       distance = 4
