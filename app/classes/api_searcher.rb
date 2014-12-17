@@ -28,6 +28,7 @@ class ApiSearcher
   end
 
   def get_distances
+    binding.pry
     @distance_array = []
     @google_matrix_response["rows"].first["elements"].each_with_index do |route, index|
       distance = route["distance"]["value"]
@@ -107,6 +108,7 @@ class ApiSearcher
 
   def get_public_transit_directions(origin, destination)
     output = HTTParty.get("https://maps.googleapis.com/maps/api/directions/json?origin=#{origin}&destination=#{destination}&mode=transit&departure_time=#{Time.now.to_i}&key=#{ENV['GOOGLEAPIKEY']}")
+
     parse_transit_data(output)
   end
 
@@ -139,11 +141,26 @@ class ApiSearcher
     @distance = @distance.to_i
   end
 
-  def parse_yelp_results
+  def return_destination_info
+    self.convert_data
     self.get_yelp_results
-    restaurants_array = []
-    @yelp_api_results.businesses.map do | business |
+    routes_array = []
+    @yelp_api_results.businesses.each_with_index.map do | business, index |
       hash = {}
+      hash["response_id"] = index
+      hash["starting_address"] = @address
+      hash["starting_ltlng"] = @address_lat_long
+      hash["food"] = @food
+      hash["distance"] = @distance
+      if @waypoint
+        hash["waypoint"] = "#{@waypoint.latitude},#{@waypoint.longitude}"
+        # hash["google_api_input"] = "&origin=#{@address_lat_long}&waypoints=#{@waypoint.latitude},#{@waypoint.longitude}&destination=#{business.location.coordinate.latitude},#{business.location.coordinate.longitude}&mode=walking"
+        hash["google_api_input"] = { origin: "#{@address_lat_long}", destination: "#{business.location.coordinate.latitude},#{business.location.coordinate.longitude}", waypoints: [{location: "#{@waypoint.latitude},#{@waypoint.longitude}", stopover: false}] }
+      else
+        hash["waypoint"] = false
+        # hash["google_api_input"] = "&origin=#{@address_lat_long}&destination=#{business.location.coordinate.latitude},#{business.location.coordinate.longitude}&mode=walking"
+        hash["google_api_input"] = { origin: "#{@address_lat_long}", destination: "#{business.location.coordinate.latitude},#{business.location.coordinate.longitude}" }
+      end
       hash["name"] = business.name || ""
       hash["rating"] = business.rating || ""
       hash["url"] = business.url || ""
@@ -151,27 +168,9 @@ class ApiSearcher
       hash["longitude"] = business.location.coordinate.longitude || ""
       hash["address"] = business.location.display_address || ""
       hash["transit_directions"] = self.get_public_transit_directions(("#{business.location.coordinate.latitude},#{business.location.coordinate.longitude}"),@address_lat_long) || ""
-      if @waypoint
-        hash["google_api_input"] = "&origin=#{@address_lat_long}&waypoints=#{@waypoint.latitude},#{@waypoint.longitude}&destination=#{business.location.coordinate.latitude},#{business.location.coordinate.longitude}&mode=walking"
-      else
-        hash["google_api_input"] = "&origin=#{@address_lat_long}&destination=#{business.location.coordinate.latitude},#{business.location.coordinate.longitude}&mode=walking"
-      end
-      restaurants_array << hash
+
+      routes_array << hash
     end
-    return restaurants_array
+    return routes_array
   end
-
-
-  def return_destination_info
-    self.convert_data
-    data_to_send = {
-      :address => @address,
-      :food => @food,
-      :distance => @distance,
-      :starting_point => @address_lat_long,
-      :waypoint => @waypoint || false,
-      :businesses => self.parse_yelp_results
-    }
-  end
-
 end

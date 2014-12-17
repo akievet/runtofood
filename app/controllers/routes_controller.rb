@@ -10,7 +10,7 @@ class RoutesController < ApplicationController
       city = City.find(1)
       address = "505 LaGuardia Pl, NYC"
       food = "bagels"
-      distance = 4
+      distance = 15
     end
     searcher = ApiSearcher.new(address, distance, food, city)
     destination_info_array = searcher.return_destination_info
