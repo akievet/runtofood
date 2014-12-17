@@ -17,7 +17,7 @@ class ApiSearcher
     lat_long = Geocoder.coordinates(@address)
     lat = lat_long[0]
     long = lat_long[1]
-    @address = "#{lat},#{long}"
+    @address_lat_long = "#{lat},#{long}"
   end
 
   def google_matrix_response(starting_point)
@@ -56,8 +56,8 @@ class ApiSearcher
   def get_range_distance_matches
     low = self.lower_range_distance
     high = self.higher_range_distance
-    self.google_matrix_response(@address)
-    #destinations = @google_matrix_response["destination_addresses"]
+    self.google_matrix_response(@address_lat_long)
+    #destinations = @google_matrix_response["destination_address_lat_longes"]
     @destination_hash = {}
     self.get_distances.each_with_index do |distance, index|
       if distance > low && distance < high
@@ -150,11 +150,11 @@ class ApiSearcher
       hash["latitude"] = business.location.coordinate.latitude || ""
       hash["longitude"] = business.location.coordinate.longitude || ""
       hash["address"] = business.location.display_address || ""
-      hash["transit_directions"] = self.get_public_transit_directions(("#{business.location.coordinate.latitude},#{business.location.coordinate.longitude}"),@address) || ""
+      hash["transit_directions"] = self.get_public_transit_directions(("#{business.location.coordinate.latitude},#{business.location.coordinate.longitude}"),@address_lat_long) || ""
       if @waypoint
-        hash["google_api_input"] = "&origin=#{@address}&waypoints=#{@waypoint.latitude},#{@waypoint.longitude}&destination=#{business.location.coordinate.latitude},#{business.location.coordinate.longitude}&mode=walking"
+        hash["google_api_input"] = "&origin=#{@address_lat_long}&waypoints=#{@waypoint.latitude},#{@waypoint.longitude}&destination=#{business.location.coordinate.latitude},#{business.location.coordinate.longitude}&mode=walking"
       else
-        hash["google_api_input"] = "&origin=#{@address}&destination=#{business.location.coordinate.latitude},#{business.location.coordinate.longitude}&mode=walking"
+        hash["google_api_input"] = "&origin=#{@address_lat_long}&destination=#{business.location.coordinate.latitude},#{business.location.coordinate.longitude}&mode=walking"
       end
       restaurants_array << hash
     end
@@ -165,7 +165,10 @@ class ApiSearcher
   def return_destination_info
     self.convert_data
     data_to_send = {
-      :starting_point => @address,
+      :address => @address,
+      :food => @food,
+      :distance => @distance,
+      :starting_point => @address_lat_long,
       :waypoint => @waypoint || false,
       :businesses => self.parse_yelp_results
     }
