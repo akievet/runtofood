@@ -15,20 +15,19 @@ class ApiSearcher
 
   def format_address
     lat_long = Geocoder.coordinates(@address)
-    lat = lat_long[0]
-    long = lat_long[1]
-    @address_lat_long = "#{lat},#{long}"
+    @origin_lat = lat_long[0]
+    @origin_long = lat_long[1]
+    @address_lat_long = "#{@origin_lat},#{@origin_long}"
   end
 
   def google_matrix_response(starting_point)
     @locations = Location.where(city_id: @city.id)
     input = ""
     @locations.each { |location| input << "#{location.latitude},#{location.longitude}%7C"}
-    @google_matrix_response = HTTParty.get("https://maps.googleapis.com/maps/api/distancematrix/json?origins=#{starting_point}&destinations=#{input}&key=#{ENV['GOOGLEAPIKEY']}&mode=walking")
+    @google_matrix_response = HTTParty.get("https://maps.googleapis.com/maps/api/distancematrix/json?origins=#{starting_point}&destinations=#{input}&key=#{ENV['GOOGLE_API_KEY']}&mode=walking")
   end
 
   def get_distances
-    binding.pry
     @distance_array = []
     @google_matrix_response["rows"].first["elements"].each_with_index do |route, index|
       distance = route["distance"]["value"]
@@ -107,7 +106,7 @@ class ApiSearcher
   end
 
   def get_public_transit_directions(origin, destination)
-    output = HTTParty.get("https://maps.googleapis.com/maps/api/directions/json?origin=#{origin}&destination=#{destination}&mode=transit&departure_time=#{Time.now.to_i}&key=#{ENV['GOOGLEAPIKEY']}")
+    output = HTTParty.get("https://maps.googleapis.com/maps/api/directions/json?origin=#{origin}&destination=#{destination}&mode=transit&departure_time=#{Time.now.to_i}&key=#{ENV['GOOGLE_API_KEY']}")
 
     parse_transit_data(output)
   end
@@ -141,6 +140,16 @@ class ApiSearcher
     @distance = @distance.to_i
   end
 
+  def google_map_zoom
+    if @distance <= 3
+      16
+    elsif @distance >3 && @distance < 6
+      13
+    elsif @distance > 6
+      10
+    end
+  end
+
   def return_destination_info
     self.convert_data
     self.get_yelp_results
@@ -150,6 +159,11 @@ class ApiSearcher
       hash["response_id"] = index
       hash["starting_address"] = @address
       hash["starting_ltlng"] = @address_lat_long
+      hash["origin_lat"] = @origin_lat
+      hash["origin_long"] = @origin_long
+      hash["dest_lat"] = business.location.coordinate.latitude
+      hash["dest_long"] = business.location.coordinate.longitude
+      hash["zoom"] = self.google_map_zoom
       hash["food"] = @food
       hash["distance"] = @distance
       if @waypoint
@@ -164,8 +178,6 @@ class ApiSearcher
       hash["name"] = business.name || ""
       hash["rating"] = business.rating || ""
       hash["url"] = business.url || ""
-      hash["latitude"] = business.location.coordinate.latitude || ""
-      hash["longitude"] = business.location.coordinate.longitude || ""
       hash["address"] = business.location.display_address || ""
       hash["transit_directions"] = self.get_public_transit_directions(("#{business.location.coordinate.latitude},#{business.location.coordinate.longitude}"),@address_lat_long) || ""
 
